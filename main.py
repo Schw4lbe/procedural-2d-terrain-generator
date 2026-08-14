@@ -32,15 +32,76 @@ import math
 
 def init_generator():
     try:
-        grid = np.array(sample_random_tiles())
-        cmap_rgba = ListedColormap([(0, 0, 0.8, 1), (0, 1, 0, 1)])
-        plt.imshow(grid, cmap=cmap_rgba)
-        plt.show()
+        user_menu_select(2)
     except KeyboardInterrupt:
         print("exit.")
 
 
-def sample_random_tiles(cols_rows: int = 10, percent: int = 30):
+def user_menu_select(n: int):
+    # NOTE: dev only for testing. calls specific int to bypass user select
+    if not n:
+        print("MENU OPTIONS:")
+        print("(1) default random out OLD")
+        print("(2) default random out")
+        print("\n")
+        user_input: int = int(input("select: "))
+
+    else:
+        user_input = n
+
+    while True:
+        if user_input == 1:
+            output_random_old()
+            break
+        if user_input == 2:
+            output_random_tile()
+            break
+        else:
+            print("invalid input.")
+            continue
+
+
+def output_random_tile():
+    grid = np.array(set_tiles_grid())
+    cmap_rgba = ListedColormap([(0, 0, 0.8, 1), (0, 1, 0, 1)])
+    display_out(grid, cmap_rgba)
+
+
+# TODO: entities should come out of a constructor as payload
+# TODO: also dimension and percent should come out of constructor
+# dimension should be % 0 devided by area_amount/2
+def set_tiles_grid(
+    dimension: int = 10, percent: int = 20, entities: dict = {"m": 1, "s": 2, "sum": 3}
+):
+    new_array: list = []
+    land_tiles_total: int = int(math.floor(pow(dimension, 2) * (percent / 100)))
+    area_amount: int = get_area_amount(entities)
+
+
+def get_area_amount(entities: dict):
+    amount: int = 0
+    if entities["sum"] == 1:
+        # NOTE: sqrt of 1 ceiled is still 1 pow of 1 cant be greater 1 so default smallest value is 4
+        amount = 4
+    else:
+        amount = int(pow(math.ceil(math.sqrt(entities["sum"])), 2))
+
+    return amount
+
+
+def display_out(grid, cmap_rgba):
+    plt.imshow(grid, cmap=cmap_rgba)
+    plt.show()
+
+
+# NOTE: version 1.0 with random sample generation without further controll params
+def output_random_old():
+    grid = np.array(sample_random_tiles_old())
+    cmap_rgba = ListedColormap([(0, 0, 0.8, 1), (0, 1, 0, 1)])
+    display_out(grid, cmap_rgba)
+
+
+def sample_random_tiles_old(cols_rows: int = 10, percent: int = 30):
     new_segment: list = []
     for n in range(cols_rows):
         if n == cols_rows:
