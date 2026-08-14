@@ -62,23 +62,105 @@ def user_menu_select(n: int):
 
 
 def output_random_tile():
-    grid = np.array(set_tiles_grid())
+    grid = np.array(get_tiles_grid())
     cmap_rgba = ListedColormap([(0, 0, 0.8, 1), (0, 1, 0, 1)])
     display_out(grid, cmap_rgba)
 
 
 # TODO: entities should come out of a constructor as payload
 # TODO: also dimension and percent should come out of constructor
+# TODO: keep in mind in constructor to also have a relation for m, s and later big
 # dimension should be % 0 devided by area_amount/2
-def set_tiles_grid(
+def get_tiles_grid(
     dimension: int = 10, percent: int = 20, entities: dict = {"m": 1, "s": 2, "sum": 3}
 ):
     new_array: list = []
     land_tiles_total: int = int(math.floor(pow(dimension, 2) * (percent / 100)))
     area_amount: int = get_area_amount(entities)
+    print(land_tiles_total, area_amount)
+    area_data: list[tuple] = get_area_data(area_amount, entities, land_tiles_total)
+
+    print(area_data)
+    exit()
+
+    # set area data
+    # get area size tile amount
+    # set area sum to area_amount in relation and fill difference with empty area
 
 
-def get_area_amount(entities: dict):
+def get_area_data(area_amount: int, entities: dict, land_tiles_total: int):
+    full_entity_list: list[str] = get_full_entity_list(area_amount, entities)
+    entity_type_amount: int = get_entity_type_amount(entities)
+    entity_list_with_amounts: list[tuple] = get_entity_list_with_amounts(
+        full_entity_list, entity_type_amount, land_tiles_total, entities
+    )
+    # maybe map here for entity list with amounts?
+    print(full_entity_list)
+
+    exit()
+
+
+def get_entity_list_with_amounts(
+    full_entity_list: list[str],
+    entity_type_amount: int,
+    land_tiles_total: int,
+    entities: dict,
+):
+    results: list[tuple] = []
+
+    tiles: int = land_tiles_total
+    last_entity = None
+    for e in full_entity_list:
+        if e == "e":
+            tiles = 0
+
+        if e == last_entity:
+            for _ in e:
+                results.append((e, tiles))
+
+        else:
+            for _ in e:
+                tiles = tiles / 2
+                results.append((e, tiles))
+
+        last_entity = e
+
+    print(results)
+
+
+def get_entity_type_amount(entities: dict):
+    amount: int = 0
+    for e in entities:
+        if e == "sum":
+            continue
+        else:
+            amount += 1
+    return amount
+
+
+def get_full_entity_list(area_amount: int, entities: dict) -> list[str]:
+    entity_list: list = []
+    for _ in range(area_amount):
+        for e in entities:
+            # ignore sum key
+            if e == "sum":
+                continue
+
+            if entities[e] != 0:
+                entities[e] -= 1
+                entity_list.append(e)
+
+    # add empty slots to match area_amount
+    while True:
+        if len(entity_list) < area_amount:
+            entity_list.append("e")
+        else:
+            break
+
+    return entity_list
+
+
+def get_area_amount(entities: dict) -> int:
     amount: int = 0
     if entities["sum"] == 1:
         # NOTE: sqrt of 1 ceiled is still 1 pow of 1 cant be greater 1 so default smallest value is 4
@@ -101,7 +183,7 @@ def output_random_old():
     display_out(grid, cmap_rgba)
 
 
-def sample_random_tiles_old(cols_rows: int = 10, percent: int = 30):
+def sample_random_tiles_old(cols_rows: int = 10, percent: int = 30) -> list:
     new_segment: list = []
     for n in range(cols_rows):
         if n == cols_rows:
