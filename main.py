@@ -30,175 +30,94 @@ import math
 # area rotation could be tricky with one big array
 
 
+class TileMapSegment:
+    DIMENSION_XY: int = 36
+
+    def __init__(self, percent: float):
+        self.percent = percent
+        self.land_tiles_amount: int = int(
+            math.floor(pow(self.DIMENSION_XY, 2) * percent)
+        )
+        self.land_tiers: dict = self.set_land_tiers(percent)
+        self.land_tile_distribution: list = self.distribute_tiles_per_tier(
+            self.land_tiles_amount, self.land_tiers
+        )
+        self.tilemap_array: list[list] = [
+            [0 for x in range(self.DIMENSION_XY)] for y in range(self.DIMENSION_XY)
+        ]
+
+    def set_land_tiers(self, percent: int) -> dict:
+        if percent == 100:
+            return {"b": 1, "m": 0, "s": 0}
+
+        else:
+            land_tiers: dict = {
+                "b": random.randint(1, 2),
+                "m": random.randint(0, 4),
+                "s": random.randint(0, 8),
+            }
+            return land_tiers
+
+    def distribute_tiles_per_tier(self, amount: int, tiers: dict) -> list:
+        results: list = []
+        if tiers["m"] == 0 and tiers["s"] == 0:
+            partial_amount: int = int(math.floor(amount / tiers["b"]))
+            for _ in range(tiers["b"]):
+                results.append(partial_amount)
+
+        elif tiers["m"] == 0 and tiers["s"] != 0:
+            partial_amount_big: int = int(math.floor(amount * 0.75 / tiers["b"]))
+            partial_amount_small: int = int(math.floor(amount * 0.25 / tiers["s"]))
+            for _ in range(tiers["b"]):
+                results.append(partial_amount_big)
+
+            for _ in range(tiers["s"]):
+                results.append(partial_amount_small)
+
+        elif tiers["m"] != 0 and tiers["s"] == 0:
+            partial_amount_big: int = int(math.floor(amount * 0.66 / tiers["b"]))
+            partial_amount_medium: int = int(math.floor(amount * 0.34 / tiers["m"]))
+            for _ in range(tiers["b"]):
+                results.append(partial_amount_big)
+
+            for _ in range(tiers["m"]):
+                results.append(partial_amount_medium)
+
+        else:
+            partial_amount_big: int = int(math.floor(amount * 0.5 / tiers["b"]))
+            partial_amount_medium: int = int(math.floor(amount * 0.33 / tiers["m"]))
+            partial_amount_small: int = int(math.floor(amount * 0.17 / tiers["s"]))
+            for _ in range(tiers["b"]):
+                results.append(partial_amount_big)
+
+            for _ in range(tiers["m"]):
+                results.append(partial_amount_medium)
+
+            for _ in range(tiers["s"]):
+                results.append(partial_amount_small)
+
+        return results
+
+
 def init_generator():
-    try:
-        user_menu_select(2)
-    except KeyboardInterrupt:
-        print("exit.")
+    tile_map_segment = TileMapSegment(0.2)
+    print(tile_map_segment.land_tiers)
+    print(tile_map_segment.land_tiles_amount)
+    print(tile_map_segment.land_tile_distribution)
+
+    exit()
+    display_out(tile_map_segment.tilemap_array)
 
 
-def user_menu_select(n: int):
-    # NOTE: dev only for testing. calls specific int to bypass user select
-    if not n:
-        print("MENU OPTIONS:")
-        print("(1) default random out OLD")
-        print("(2) default random out")
-        print("\n")
-        user_input: int = int(input("select: "))
-
-    else:
-        user_input = n
-
-    while True:
-        if user_input == 1:
-            output_random_old()
-            break
-        if user_input == 2:
-            output_random_tile()
-            break
-        else:
-            print("invalid input.")
-            continue
-
-
-def output_random_tile():
-    grid = np.array(get_tiles_grid())
+def display_out(grid: list[list]):
+    grid = np.array(grid)
     cmap_rgba = ListedColormap([(0, 0, 0.8, 1), (0, 1, 0, 1)])
-    display_out(grid, cmap_rgba)
-
-
-# TODO: entities should come out of a constructor as payload
-# TODO: also dimension and percent should come out of constructor
-# TODO: keep in mind in constructor to also have a relation for m, s and later big
-# dimension should be % 0 devided by area_amount/2
-def get_tiles_grid(
-    dimension: int = 10, percent: int = 20, entities: dict = {"m": 1, "s": 2, "sum": 3}
-):
-    new_array: list = []
-    land_tiles_total: int = int(math.floor(pow(dimension, 2) * (percent / 100)))
-    area_amount: int = get_area_amount(entities)
-    print(land_tiles_total, area_amount)
-    area_data: list[tuple] = get_area_data(area_amount, entities, land_tiles_total)
-
-    print(area_data)
-    exit()
-
-    # set area data
-    # get area size tile amount
-    # set area sum to area_amount in relation and fill difference with empty area
-
-
-def get_area_data(area_amount: int, entities: dict, land_tiles_total: int):
-    full_entity_list: list[str] = get_full_entity_list(area_amount, entities)
-    entity_type_amount: int = get_entity_type_amount(entities)
-    entity_list_with_amounts: list[tuple] = get_entity_list_with_amounts(
-        full_entity_list, entity_type_amount, land_tiles_total, entities
-    )
-    # maybe map here for entity list with amounts?
-    print(full_entity_list)
-
-    exit()
-
-
-def get_entity_list_with_amounts(
-    full_entity_list: list[str],
-    entity_type_amount: int,
-    land_tiles_total: int,
-    entities: dict,
-):
-    results: list[tuple] = []
-
-    tiles: int = land_tiles_total
-    last_entity = None
-    for e in full_entity_list:
-        if e == "e":
-            tiles = 0
-
-        if e == last_entity:
-            for _ in e:
-                results.append((e, tiles))
-
-        else:
-            for _ in e:
-                tiles = tiles / 2
-                results.append((e, tiles))
-
-        last_entity = e
-
-    print(results)
-
-
-def get_entity_type_amount(entities: dict):
-    amount: int = 0
-    for e in entities:
-        if e == "sum":
-            continue
-        else:
-            amount += 1
-    return amount
-
-
-def get_full_entity_list(area_amount: int, entities: dict) -> list[str]:
-    entity_list: list = []
-    for _ in range(area_amount):
-        for e in entities:
-            # ignore sum key
-            if e == "sum":
-                continue
-
-            if entities[e] != 0:
-                entities[e] -= 1
-                entity_list.append(e)
-
-    # add empty slots to match area_amount
-    while True:
-        if len(entity_list) < area_amount:
-            entity_list.append("e")
-        else:
-            break
-
-    return entity_list
-
-
-def get_area_amount(entities: dict) -> int:
-    amount: int = 0
-    if entities["sum"] == 1:
-        # NOTE: sqrt of 1 ceiled is still 1 pow of 1 cant be greater 1 so default smallest value is 4
-        amount = 4
-    else:
-        amount = int(pow(math.ceil(math.sqrt(entities["sum"])), 2))
-
-    return amount
-
-
-def display_out(grid, cmap_rgba):
     plt.imshow(grid, cmap=cmap_rgba)
     plt.show()
 
 
-# NOTE: version 1.0 with random sample generation without further controll params
-def output_random_old():
-    grid = np.array(sample_random_tiles_old())
-    cmap_rgba = ListedColormap([(0, 0, 0.8, 1), (0, 1, 0, 1)])
-    display_out(grid, cmap_rgba)
-
-
-def sample_random_tiles_old(cols_rows: int = 10, percent: int = 30) -> list:
-    new_segment: list = []
-    for n in range(cols_rows):
-        if n == cols_rows:
-            break
-
-        else:
-            n -= -1
-            new_row: list = [0] * cols_rows
-            el_per_row: int = int(math.ceil((percent / 100) * cols_rows))
-            sample: list = random.sample(range(cols_rows), el_per_row)
-            for index in sample:
-                new_row[index] = 1
-
-            new_segment.append(new_row)
-    return new_segment
+def get_grid():
+    pass
 
 
 def main():
