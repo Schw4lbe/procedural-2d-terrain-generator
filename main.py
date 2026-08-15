@@ -59,6 +59,14 @@ class TileMapSegment:
             return land_tiers
 
     def distribute_tiles_per_tier(self, amount: int, tiers: dict) -> list:
+        # NOTE: dev overwrite local for testing
+        # tiers = {"b": 2, "m": 1, "s": 0}
+
+        # TODO: currently linear distribution, might consider more randomness
+        # this would involve float factors on amount for partila_amount variables
+        # also would involve having random range per iteration on tiers entry
+        # is complicated because there will be a value overflow that has to be caught and processed
+
         results: list = []
         if tiers["m"] == 0 and tiers["s"] == 0:
             partial_amount: int = int(math.floor(amount / tiers["b"]))
@@ -66,8 +74,8 @@ class TileMapSegment:
                 results.append(partial_amount)
 
         elif tiers["m"] == 0 and tiers["s"] != 0:
-            partial_amount_big: int = int(math.floor(amount * 0.75 / tiers["b"]))
-            partial_amount_small: int = int(math.floor(amount * 0.25 / tiers["s"]))
+            partial_amount_big: int = int(math.floor(amount * 0.80 / tiers["b"]))
+            partial_amount_small: int = int(math.floor(amount * 0.20 / tiers["s"]))
             for _ in range(tiers["b"]):
                 results.append(partial_amount_big)
 
@@ -75,8 +83,8 @@ class TileMapSegment:
                 results.append(partial_amount_small)
 
         elif tiers["m"] != 0 and tiers["s"] == 0:
-            partial_amount_big: int = int(math.floor(amount * 0.66 / tiers["b"]))
-            partial_amount_medium: int = int(math.floor(amount * 0.34 / tiers["m"]))
+            partial_amount_big: int = int(math.floor(amount * 0.70 / tiers["b"]))
+            partial_amount_medium: int = int(math.floor(amount * 0.30 / tiers["m"]))
             for _ in range(tiers["b"]):
                 results.append(partial_amount_big)
 
@@ -84,9 +92,9 @@ class TileMapSegment:
                 results.append(partial_amount_medium)
 
         else:
-            partial_amount_big: int = int(math.floor(amount * 0.5 / tiers["b"]))
-            partial_amount_medium: int = int(math.floor(amount * 0.33 / tiers["m"]))
-            partial_amount_small: int = int(math.floor(amount * 0.17 / tiers["s"]))
+            partial_amount_big: int = int(math.floor(amount * 0.60 / tiers["b"]))
+            partial_amount_medium: int = int(math.floor(amount * 0.30 / tiers["m"]))
+            partial_amount_small: int = int(math.floor(amount * 0.10 / tiers["s"]))
             for _ in range(tiers["b"]):
                 results.append(partial_amount_big)
 
