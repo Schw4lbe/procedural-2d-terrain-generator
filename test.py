@@ -1,4 +1,3 @@
-testing = ("s", 2)
+value = -1
 
-print(testing[0])
-print(testing[1])
+print(4 + value)

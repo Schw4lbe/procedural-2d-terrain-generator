@@ -88,10 +88,10 @@ class TileMapSegment:
 
 def init_generator():
     try:
-        tile_map_segment = TileMapSegment(0.1)
-        print(tile_map_segment.land_tiers)
-        print(tile_map_segment.land_tiles_amount)
-        print(tile_map_segment.land_tile_distribution)
+        tile_map_segment = TileMapSegment(0.2)
+        # print(tile_map_segment.land_tiers)
+        # print(tile_map_segment.land_tiles_amount)
+        # print(tile_map_segment.land_tile_distribution)
 
         test_array = process_land_tile_distribution(tile_map_segment)
 
@@ -100,8 +100,6 @@ def init_generator():
         print("exit.")
 
 
-# TODO: embedd some form of noise to the generation to interupt tiles but without creating lakes
-# TODO: before adding noise update script to also create a set
 def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
     max_index: int = segment.DIMENSION_XY - 1
 
@@ -113,15 +111,16 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                 for y in range(segment.DIMENSION_XY)
             ]
 
-            rnd_index_x: int = random.randint(0, max_index)
-            rnd_index_y: int = random.randint(0, max_index)
-            start_x: int = rnd_index_x
             item_render_range: int = set_render_range(item)
+            rnd_index_x: int = get_random_index(max_index, item_render_range)
+            rnd_index_y: int = get_random_index(max_index, item_render_range)
+            start_x: int = rnd_index_x
+
+            print("Startin POINT for Rendering: ", rnd_index_y, rnd_index_x)
 
             try:
                 for _ in range(item):
                     local_array[rnd_index_y][rnd_index_x] = 1
-                    print("y/x: ", rnd_index_y, rnd_index_x)
 
                     if rnd_index_x == max_index or rnd_index_x == (
                         start_x + item_render_range
@@ -130,12 +129,13 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                         rnd_index_x -= item_render_range
 
                     else:
-
                         rnd_index_x += 1
 
                 modified_array: list[list] = add_edge_erosion(
                     local_array, item_render_range
                 )
+                # TODO: add some rotation here next before returning anything
+
                 return modified_array
 
             except IndexError as e:
@@ -144,35 +144,141 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                 continue
 
 
-# TODO: create a set from the local_array
-# TODO: manipulate the set rather then the array it self
-# TODO: add same logic as below after update loop set into array
-def add_edge_erosion(local_array: list[list], item_render_range: int) -> list[list]:
-    # 0 - 20% floored from render range
-    erosion_max_range: int = int(math.floor(item_render_range * 0.2))
+def get_random_index(max_index: int, item_render_range: int) -> int:
+    return random.randint(0, max_index - item_render_range)
 
-    # keep track of all deleted and added items
-    # after last iteration counter for difference must be 0
+
+# TODO: add gap mechanic for start or ending
+def add_edge_erosion(array: list[list], item_render_range: int) -> list[list]:
+    local_array: list[list] = array.copy()
+    erosion_max: int = int(math.floor(item_render_range * 0.2))
     erosion_checksum: int = 0
+    row_idex_list: list = []
 
-    # NOTE: not worth the effort its to complicated
-    # NOTE: redo with first filtering the array into a set
-    # for row in local_array:
-    #     if any(row):
-    #         # on each row decide weather to add or delete tiles at START and END
-    #         is_delete: bool = random.choice([True, False])
-    #         erosion_front: int = random.randint(0, erosion_max_range)
-    #         erosion_back: int = random.randint(0, erosion_max_range)
-    #         for index, tile in enumerate(row):
-    #             if tile == 1 and erosion_front > 0:
-    #                 if is_delete:
-    #                     tile[index] == 0
-    #                     erosion_checksum -= 1
-    #                     erosion_front -= 1
-    #                 if not is_delete:
-    #                     tile[index + erosion_front] == 1
-    #                     erosion_checksum += 1
-    #                     erosion_front -= 1
+    for row_index, row in enumerate(local_array):
+        if any(row):
+            row_idex_list.append(row_index)
+            erosion_start: int = random.randint((erosion_max * -1), erosion_max)
+            erosion_end: int = random.randint((erosion_max * -1), erosion_max)
+            start: int = row.index(1)
+            end: int = (len(row) - 1) - row[::-1].index(1)
+            # print("erosions: ", erosion_start, erosion_end)
+            # print("start/end: ", start, end)
+
+            if erosion_start > 0:
+                index = start - erosion_start
+
+                for _ in row:
+                    if row[index] == 1:
+                        break
+                    else:
+                        row[index] = 1
+                        erosion_checksum += 1
+                        index += 1
+
+            elif erosion_start < 0:
+                index = start
+
+                for _ in row:
+                    if erosion_start == 0:
+                        break
+                    else:
+                        row[index] = 0
+                        erosion_checksum -= 1
+                        index += 1
+                        erosion_start += 1
+
+            if erosion_end > 0:
+                index = end + 1
+
+                for _ in row:
+                    if index == erosion_end + end + 1:
+                        break
+                    else:
+                        row[index] = 1
+                        erosion_checksum += 1
+                        index += 1
+
+            elif erosion_end < 0:
+                index = end + erosion_end + 1
+
+                for _ in row:
+                    if row[index] == 0:
+                        break
+                    else:
+                        row[index] = 0
+                        erosion_checksum -= 1
+                        index += 1
+
+    if erosion_checksum != 0:
+        local_array: list[list] = apply_overflow(
+            local_array, erosion_checksum, row_idex_list[0], row_idex_list[-1]
+        )
+        return local_array
+
+    else:
+        return local_array
+
+
+def apply_overflow(array: list[list], erosion_checksum: int, y_start: int, y_end: int):
+    local_array: list[list] = array.copy()
+    on_top: bool = True
+    distribution: list = set_overflow_distribution(erosion_checksum)
+
+    # NOTE: local overwrite for testing:
+    distribution = [1, 3, 4]
+    erosion_checksum = 8
+
+    if erosion_checksum > 0:
+        # guards to prevent index errors
+        if y_start - len(distribution) < 0:
+            on_top = False
+        if y_end + len(distribution) > TileMapSegment.DIMENSION_XY - 1:
+            on_top = True
+
+        if on_top:
+            x_start: int = local_array[y_start].index(1)
+            x_end: int = (
+                len(local_array[y_start]) - 1 - local_array[y_start][::-1].index(1)
+            )
+
+            x_new_start: int = x_start + ((x_end - x_start) // 2)
+            print("X NEW START: ", x_new_start)
+            print(distribution)
+
+            y_start -= len(distribution)
+
+            for value in distribution:
+                index = x_new_start
+                for n in range(value):
+                    local_array[y_start][index] = 1
+                    print("tile set: ", y_start, index)
+                    if n + 1 == value:
+                        x_new_start -= 1
+                    else:
+                        index += 1
+
+                y_start += 1
+
+    return local_array
+
+
+# NOTE: currently increase per row hardcode as int 2
+def set_overflow_distribution(value: int):
+    row_size: int = 1
+    rows: list = []
+
+    if value < 0:
+        value = value * (-1)
+
+    while value > 0:
+        amount = min(row_size, value)
+        rows.append(amount)
+
+        value -= amount
+        row_size += 2
+
+    return rows
 
 
 def set_render_range(item: int) -> int:
