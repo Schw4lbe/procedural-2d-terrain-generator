@@ -80,7 +80,17 @@ class TileMapSegment:
         return results
 
 
+init_count = 0
+
+
 def init_generator():
+
+    # NOTE: Seed implementation for debugging
+    # seed = random.randint(0, 2**32 - 1)
+    # random.seed(2705548230)
+    # print("#########################")
+    # print("SEED: ", seed)
+
     try:
         tile_map_segment = TileMapSegment(0.3)
         test_array = process_land_tile_distribution(tile_map_segment)
@@ -88,7 +98,16 @@ def init_generator():
         count = sum(row.count(1) for row in test_array)
         print(f"FINAL CHECK {tile_map_segment.land_tiles_amount}: ", count)
 
-        # TODO: add some rotation here before display out happens
+        # TODO: add tilemap rotation function before display out happens
+
+        # global init_count
+        # init_count += 1
+        # if init_count <= 200:
+        #     init_generator()
+        # else:
+        #     exit()
+
+        # exit()
 
         display_out(test_array)
     except KeyboardInterrupt:
@@ -135,6 +154,12 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                 winsound.Beep(250, 200)
                 continue
 
+            except ValueError as e:
+                print(e)
+                print(local_array)
+                winsound.Beep(450, 200)
+                continue
+
 
 def set_render_range(tile_amount: int) -> int:
     min_range: int = int(math.floor(math.sqrt(tile_amount) * 0.8))
@@ -147,7 +172,6 @@ def get_random_index(max_index: int, item_render_range: int) -> int:
 
 
 def add_edge_erosion(array: list[list], item_render_range: int, reserved: int) -> list[list]:
-
     local_array: list[list] = array.copy()
     erosion_max: int = int(math.floor(item_render_range * 0.1))
     erosion_checksum: int = 0
@@ -156,7 +180,6 @@ def add_edge_erosion(array: list[list], item_render_range: int, reserved: int) -
 
     for row_index, row in enumerate(local_array):
         if any(row):
-            row_index_list.append(row_index)
             erosion_start: int = random.randint((erosion_max * -2), erosion_max)
             erosion_end: int = random.randint((erosion_max * -2), erosion_max)
             start: int = row.index(1)
@@ -207,17 +230,19 @@ def add_edge_erosion(array: list[list], item_render_range: int, reserved: int) -
                         erosion_checksum -= 1
                         index += 1
 
+            if any(row):
+                row_index_list.append(row_index)
+
     erosion_checksum -= reserved
     # NOTE: Dev overwrite
     # erosion_checksum = 50
 
     if erosion_checksum != 0:
-        # print("full array: ", local_array)
-        # print("row index list: ", row_index_list)
-        local_array: list[list] = handle_checksum_imbalance(
+        new_local_array: list[list] = handle_checksum_imbalance(
             local_array, erosion_checksum, row_index_list[0], row_index_list[-1]
         )
-        return local_array
+
+        return new_local_array
 
     else:
         return local_array
@@ -226,15 +251,14 @@ def add_edge_erosion(array: list[list], item_render_range: int, reserved: int) -
 def handle_checksum_imbalance(array: list[list], erosion_checksum: int, y_start: int, y_end: int):
     local_array: list[list] = array.copy()
     distribution: list = set_distribution(erosion_checksum)
-    print("DISTRIBUTION: ", distribution)
     top_blocked: bool = y_start - math.ceil(len(distribution) / 2) < 0
     bottom_blocked: bool = y_end + math.ceil(len(distribution) / 2) > TileMapSegment.DIMENSION_XY - 1
 
     if erosion_checksum < 0:
-        if bottom_blocked:
+        if bottom_blocked and not top_blocked:
             local_array = handle_underflow_top(local_array, distribution, y_start)
 
-        elif top_blocked:
+        elif top_blocked and not bottom_blocked:
             local_array = handle_underflow_bottom(local_array, distribution, y_end)
 
         else:
@@ -244,11 +268,8 @@ def handle_checksum_imbalance(array: list[list], erosion_checksum: int, y_start:
             local_array = handle_underflow_bottom(local_array, dist_bottom, y_end)
 
     else:
-        print("lets see some deletions!")
         dist_top: list = distribution[::2]
         dist_bottom: list = distribution[1::2]
-
-        print(dist_top, dist_bottom)
 
         x_start_top: int = local_array[y_start].index(1)
         x_end_top: int = len(local_array[y_start]) - 1 - local_array[y_start][::-1].index(1)
@@ -267,7 +288,6 @@ def handle_checksum_imbalance(array: list[list], erosion_checksum: int, y_start:
             y_start -= 1
 
         x_start_bottom: int = local_array[y_end].index(1)
-        # TODO: if local_array[y_end] # amount of ones smaler then .8 of average -> se above <- but if so y_end -1
         x_end_bottom: int = len(local_array[y_end]) - 1 - local_array[y_end][::-1].index(1)
         x_center_bottom: int = x_start_bottom + ((x_end_bottom - x_start_bottom) // 2)
         y_end -= len(dist_bottom) - 1
@@ -309,7 +329,6 @@ def handle_underflow_top(array: list[list], distribution: list, y_start: int) ->
 def handle_underflow_bottom(array: list[list], distribution: list, y_end: int) -> list[list]:
     local_array: list[list] = array.copy()
     # NOTE: had index bug in x_start for index of 1
-    print(local_array[y_end])
     x_start: int = local_array[y_end].index(1)
     x_end: int = len(local_array[y_end]) - 1 - local_array[y_end][::-1].index(1)
     x_center: int = x_start + ((x_end - x_start) // 2)
@@ -328,7 +347,6 @@ def handle_underflow_bottom(array: list[list], distribution: list, y_end: int) -
     return local_array
 
 
-# NOTE: currently increase per row hardcode as int 2
 def set_distribution(value: int):
     row_size: int = random.randint(0, 2)
     rows: list = []
