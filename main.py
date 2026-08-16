@@ -86,10 +86,10 @@ init_count = 0
 def init_generator():
 
     # NOTE: Seed implementation for debugging
-    # seed = random.randint(0, 2**32 - 1)
-    # random.seed(2705548230)
-    # print("#########################")
-    # print("SEED: ", seed)
+    seed = random.randint(0, 2**32 - 1)
+    random.seed(seed)
+    print("#########################")
+    print("SEED: ", seed)
 
     try:
         tile_map_segment = TileMapSegment(0.3)
@@ -146,8 +146,9 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                         rnd_index_x += 1
 
                 modified_array: list[list] = add_edge_erosion(local_array, item_render_range, reserved)
+                mirrored_array: list[list] = add_rotation_and_mirroring(modified_array)
 
-                return modified_array
+                return mirrored_array
 
             except IndexError as e:
                 print(e)
@@ -159,6 +160,26 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                 print(local_array)
                 winsound.Beep(450, 200)
                 continue
+
+
+def add_rotation_and_mirroring(array: list[list]):
+    local_array: list[list] = array.copy()
+    rotation: str = random.choice([0, 90, 180, 270])
+    mirror: str = random.choice(["hori", "vert", "none"])
+
+    if rotation == 90:
+        local_array = [list(row) for row in zip(*local_array[::-1])]
+    elif rotation == 180:
+        local_array = [row[::-1] for row in local_array[::-1]]
+    elif rotation == 270:
+        local_array = [list(row) for row in zip(*local_array)][::-1]
+
+    if mirror == "hori":
+        local_array = [row[::-1] for row in local_array]
+    elif mirror == "vert":
+        local_array = local_array[::-1]
+
+    return local_array
 
 
 def set_render_range(tile_amount: int) -> int:
