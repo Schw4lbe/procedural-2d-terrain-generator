@@ -30,7 +30,7 @@ class TileMapSegment:
 
     def distribute_tiles(self, amount: int, tiers: dict) -> list:
         # NOTE: dev overwrite local for testing
-        tiers = {"b": 1, "m": 0, "s": 0}
+        tiers = {"b": 1, "m": 1, "s": 0}
 
         results: list = []
         if tiers["m"] == 0 and tiers["s"] == 0:
@@ -84,7 +84,7 @@ def init_generator():
     # NOTE: Seed implementation for debugging
     seed = random.randint(0, 2**32 - 1)
     random.seed(seed)
-    print("#########################")
+    # print("#########################")
     print("SEED: ", seed)
 
     try:
@@ -101,11 +101,12 @@ def init_generator():
 
         display_out(new_array)
     except KeyboardInterrupt:
-        print("exit.")
+        exit()
 
 
 def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
     max_index: int = segment.DIMENSION_XY - 1
+    print(segment.land_tile_distribution)
 
     for item in segment.land_tile_distribution:
         reserved: int = random.randint(int(math.floor(item * -0.2)), int(math.floor(item * 0.2)))
@@ -136,6 +137,12 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                     local_array = cleanup_tile_difference(local_array, tile_difference)
 
                 local_array = add_rotation_and_mirroring(local_array)
+
+                # TODO: try add local_array to segment.tilemap_array
+                # TODO: do so by rotating it if none succeeds recreate
+                # TODO: update segment.land_tile_distribution deleting last value successfully put to main array
+                # TODO: condition here return array when len(segment.land_tile_dristrubtion) = 0
+
                 return local_array
 
             except IndexError as e:
@@ -153,9 +160,6 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                 print(local_array)
                 winsound.Beep(650, 200)
                 continue
-
-            except RecursionError:
-                print("recursion")
 
 
 def cleanup_tile_difference(array: list[list], tile_difference: int) -> list[list]:
