@@ -5,9 +5,6 @@ import random
 import math
 import winsound
 
-# make every partial generation at itself rotate 0 - 270 deg at random
-# put it all together in one world tile set
-
 
 class TileMapSegment:
     DIMENSION_XY: int = 36
@@ -35,20 +32,17 @@ class TileMapSegment:
         # NOTE: dev overwrite local for testing
         tiers = {"b": 1, "m": 0, "s": 0}
 
-        # TODO: currently linear distribution, might consider more randomness
-        # this would involve float factors on amount for partila_amount variables
-        # also would involve having random range per iteration on tiers entry
-        # is complicated because there will be a value overflow that has to be caught and processed
-
         results: list = []
         if tiers["m"] == 0 and tiers["s"] == 0:
             partial_amount: int = int(math.floor(amount / tiers["b"]))
+
             for _ in range(tiers["b"]):
                 results.append(partial_amount)
 
         elif tiers["m"] == 0 and tiers["s"] != 0:
             partial_amount_big: int = int(math.floor(amount * 0.80 / tiers["b"]))
             partial_amount_small: int = int(math.floor(amount * 0.20 / tiers["s"]))
+
             for _ in range(tiers["b"]):
                 results.append(partial_amount_big)
 
@@ -58,6 +52,7 @@ class TileMapSegment:
         elif tiers["m"] != 0 and tiers["s"] == 0:
             partial_amount_big: int = int(math.floor(amount * 0.70 / tiers["b"]))
             partial_amount_medium: int = int(math.floor(amount * 0.30 / tiers["m"]))
+
             for _ in range(tiers["b"]):
                 results.append(partial_amount_big)
 
@@ -68,6 +63,7 @@ class TileMapSegment:
             partial_amount_big: int = int(math.floor(amount * 0.60 / tiers["b"]))
             partial_amount_medium: int = int(math.floor(amount * 0.30 / tiers["m"]))
             partial_amount_small: int = int(math.floor(amount * 0.10 / tiers["s"]))
+
             for _ in range(tiers["b"]):
                 results.append(partial_amount_big)
 
@@ -93,23 +89,17 @@ def init_generator():
 
     try:
         tile_map_segment = TileMapSegment(0.3)
-        test_array = process_land_tile_distribution(tile_map_segment)
-        # NOTE: testing to verifiy correct number of land tiles present in processed array
-        count = sum(row.count(1) for row in test_array)
-        print(f"FINAL CHECK {tile_map_segment.land_tiles_amount}: ", count)
+        new_array = process_land_tile_distribution(tile_map_segment)
 
-        # TODO: add tilemap rotation function before display out happens
+        """NOTE: dev overwrite for loop
+        global init_count
+        init_count += 1
+        if init_count <= 200:
+            init_generator()
+        else:
+            exit()"""
 
-        # global init_count
-        # init_count += 1
-        # if init_count <= 200:
-        #     init_generator()
-        # else:
-        #     exit()
-
-        # exit()
-
-        display_out(test_array)
+        display_out(new_array)
     except KeyboardInterrupt:
         print("exit.")
 
@@ -118,20 +108,14 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
     max_index: int = segment.DIMENSION_XY - 1
 
     for item in segment.land_tile_distribution:
-        reserved: int = random.randint(int(math.floor(item * -0.1)), int(math.floor(item * 0.1)))
+        reserved: int = random.randint(int(math.floor(item * -0.2)), int(math.floor(item * 0.2)))
         tile_amount = item - reserved
 
         while True:
             local_array: list[list] = [[0 for x in range(segment.DIMENSION_XY)] for y in range(segment.DIMENSION_XY)]
-
             item_render_range: int = set_render_range(tile_amount)
             rnd_index_x: int = get_random_index(max_index, item_render_range)
             rnd_index_y: int = get_random_index(max_index, item_render_range)
-
-            # NOTE: Dev overwrite
-            # rnd_index_x = 2
-            # rnd_index_y = 20
-
             start_x: int = rnd_index_x
 
             try:
@@ -145,14 +129,17 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                     else:
                         rnd_index_x += 1
 
-                modified_array: list[list] = add_edge_erosion(local_array, item_render_range, reserved)
-                mirrored_array: list[list] = add_rotation_and_mirroring(modified_array)
+                local_array = add_edge_erosion(local_array, item_render_range, reserved, segment.land_tiles_amount)
+                tile_difference: int = sum(row.count(1) for row in local_array) - segment.land_tiles_amount
 
-                return mirrored_array
+                if tile_difference > 0:
+                    local_array = cleanup_tile_difference(local_array, tile_difference)
+
+                local_array = add_rotation_and_mirroring(local_array)
+                return local_array
 
             except IndexError as e:
                 print(e)
-                winsound.Beep(250, 200)
                 continue
 
             except ValueError as e:
@@ -160,6 +147,30 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                 print(local_array)
                 winsound.Beep(450, 200)
                 continue
+
+            except AttributeError as e:
+                print(e)
+                print(local_array)
+                winsound.Beep(650, 200)
+                continue
+
+            except RecursionError:
+                print("recursion")
+
+
+def cleanup_tile_difference(array: list[list], tile_difference: int) -> list[list]:
+    local_array: list[list] = array.copy()
+
+    for row in local_array:
+        for index, n in enumerate(row):
+            if tile_difference == 0:
+                return local_array
+
+            if n == 1:
+                row[index] = 0
+                tile_difference -= 1
+
+    return local_array
 
 
 def add_rotation_and_mirroring(array: list[list]):
@@ -192,17 +203,16 @@ def get_random_index(max_index: int, item_render_range: int) -> int:
     return random.randint(2, max_index - item_render_range)
 
 
-def add_edge_erosion(array: list[list], item_render_range: int, reserved: int) -> list[list]:
+def add_edge_erosion(array: list[list], item_render_range: int, reserved: int, land_tiles_amount: int) -> list[list]:
     local_array: list[list] = array.copy()
     erosion_max: int = int(math.floor(item_render_range * 0.1))
     erosion_checksum: int = 0
-
     row_index_list: list = []
 
     for row_index, row in enumerate(local_array):
-        if any(row):
-            erosion_start: int = random.randint((erosion_max * -2), erosion_max)
-            erosion_end: int = random.randint((erosion_max * -2), erosion_max)
+        if 1 in row:
+            erosion_start: int = random.randint((erosion_max * -1), erosion_max)
+            erosion_end: int = random.randint((erosion_max * -1), erosion_max)
             start: int = row.index(1)
             end: int = (len(row) - 1) - row[::-1].index(1)
 
@@ -251,25 +261,20 @@ def add_edge_erosion(array: list[list], item_render_range: int, reserved: int) -
                         erosion_checksum -= 1
                         index += 1
 
-            if any(row):
+            if 1 in row:
                 row_index_list.append(row_index)
 
     erosion_checksum -= reserved
-    # NOTE: Dev overwrite
-    # erosion_checksum = 50
 
     if erosion_checksum != 0:
-        new_local_array: list[list] = handle_checksum_imbalance(
-            local_array, erosion_checksum, row_index_list[0], row_index_list[-1]
-        )
-
-        return new_local_array
+        local_array = handle_checksum_imbalance(local_array, erosion_checksum, row_index_list[0], row_index_list[-1])
+        return local_array
 
     else:
         return local_array
 
 
-def handle_checksum_imbalance(array: list[list], erosion_checksum: int, y_start: int, y_end: int):
+def handle_checksum_imbalance(array: list[list], erosion_checksum: int, y_start: int, y_end: int) -> list[list]:
     local_array: list[list] = array.copy()
     distribution: list = set_distribution(erosion_checksum)
     top_blocked: bool = y_start - math.ceil(len(distribution) / 2) < 0
@@ -288,7 +293,7 @@ def handle_checksum_imbalance(array: list[list], erosion_checksum: int, y_start:
             local_array = handle_underflow_top(local_array, dist_top, y_start)
             local_array = handle_underflow_bottom(local_array, dist_bottom, y_end)
 
-    else:
+    elif erosion_checksum > 0:
         dist_top: list = distribution[::2]
         dist_bottom: list = distribution[1::2]
 
@@ -308,21 +313,25 @@ def handle_checksum_imbalance(array: list[list], erosion_checksum: int, y_start:
 
             y_start -= 1
 
-        x_start_bottom: int = local_array[y_end].index(1)
-        x_end_bottom: int = len(local_array[y_end]) - 1 - local_array[y_end][::-1].index(1)
-        x_center_bottom: int = x_start_bottom + ((x_end_bottom - x_start_bottom) // 2)
-        y_end -= len(dist_bottom) - 1
+        if len(dist_bottom) > 0:
+            x_start_bottom: int = local_array[y_end].index(1)
+            x_end_bottom: int = len(local_array[y_end]) - 1 - local_array[y_end][::-1].index(1)
+            x_center_bottom: int = x_start_bottom + ((x_end_bottom - x_start_bottom) // 2)
+            y_end -= len(dist_bottom) - 1
 
-        for value in dist_bottom:
-            index = x_center_bottom
-            for n in range(value):
-                local_array[y_end][index] = 0
-                if n + 1 == value:
-                    x_center_bottom -= 1
-                else:
-                    index += 1
+            for value in dist_bottom:
+                index = x_center_bottom
+                for n in range(value):
+                    local_array[y_end][index] = 0
+                    if n + 1 == value:
+                        x_center_bottom -= 1
+                    else:
+                        index += 1
 
-            y_end += 1
+                y_end += 1
+
+    else:
+        return local_array
 
     return local_array
 
@@ -349,7 +358,6 @@ def handle_underflow_top(array: list[list], distribution: list, y_start: int) ->
 
 def handle_underflow_bottom(array: list[list], distribution: list, y_end: int) -> list[list]:
     local_array: list[list] = array.copy()
-    # NOTE: had index bug in x_start for index of 1
     x_start: int = local_array[y_end].index(1)
     x_end: int = len(local_array[y_end]) - 1 - local_array[y_end][::-1].index(1)
     x_center: int = x_start + ((x_end - x_start) // 2)
@@ -369,7 +377,7 @@ def handle_underflow_bottom(array: list[list], distribution: list, y_end: int) -
 
 
 def set_distribution(value: int):
-    row_size: int = random.randint(0, 2)
+    row_size: int = random.randint(1, 2)
     rows: list = []
 
     if value < 0:
