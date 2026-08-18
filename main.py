@@ -30,7 +30,7 @@ class TileMapSegment:
 
     def distribute_tiles(self, amount: int, tiers: dict) -> list:
         # NOTE: dev overwrite local for testing
-        tiers = {"b": 1, "m": 1, "s": 0}
+        # tiers = {"b": 1, "m": 1, "s": 0}
 
         results: list = []
         if tiers["m"] == 0 and tiers["s"] == 0:
@@ -89,7 +89,7 @@ def init_generator():
 
     try:
         tile_map_segment = TileMapSegment(0.3)
-        new_array = process_land_tile_distribution(tile_map_segment)
+        final_array = process_land_tile_distribution(tile_map_segment)
 
         """NOTE: dev overwrite for loop
         global init_count
@@ -99,14 +99,13 @@ def init_generator():
         else:
             exit()"""
 
-        display_out(new_array)
+        display_out(final_array)
     except KeyboardInterrupt:
         exit()
 
 
 def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
     max_index: int = segment.DIMENSION_XY - 1
-    print(segment.land_tile_distribution)
 
     for item in segment.land_tile_distribution:
         reserved: int = random.randint(int(math.floor(item * -0.2)), int(math.floor(item * 0.2)))
@@ -115,11 +114,13 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
         while True:
             local_array: list[list] = [[0 for x in range(segment.DIMENSION_XY)] for y in range(segment.DIMENSION_XY)]
             item_render_range: int = set_render_range(tile_amount)
+            # TODO: add check to not set new rnd coords on already populated tile
             rnd_index_x: int = get_random_index(max_index, item_render_range)
             rnd_index_y: int = get_random_index(max_index, item_render_range)
             start_x: int = rnd_index_x
 
             try:
+                # NOTE: outputs a square to start with
                 for _ in range(tile_amount):
                     local_array[rnd_index_y][rnd_index_x] = 1
 
@@ -132,18 +133,20 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
 
                 local_array = add_edge_erosion(local_array, item_render_range, reserved, segment.land_tiles_amount)
                 tile_difference: int = sum(row.count(1) for row in local_array) - segment.land_tiles_amount
-
+                # NOTE: optional cleanup
                 if tile_difference > 0:
                     local_array = cleanup_tile_difference(local_array, tile_difference)
-
                 local_array = add_rotation_and_mirroring(local_array)
 
-                # TODO: try add local_array to segment.tilemap_array
-                # TODO: do so by rotating it if none succeeds recreate
-                # TODO: update segment.land_tile_distribution deleting last value successfully put to main array
-                # TODO: condition here return array when len(segment.land_tile_dristrubtion) = 0
+                # NOTE: try add to result
+                is_successfull: bool = attach_tiles_to_segment(segment, local_array)
 
-                return local_array
+                if is_successfull:
+                    print(f"{item} tiles successfully added to segment.")
+                    break
+                else:
+                    print("handle failure here")
+                    break
 
             except IndexError as e:
                 print(e)
@@ -161,20 +164,87 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                 winsound.Beep(650, 200)
                 continue
 
+    return segment.tilemap_array
 
-def cleanup_tile_difference(array: list[list], tile_difference: int) -> list[list]:
+
+def attach_tiles_to_segment(segment: TileMapSegment, array: list[list]) -> bool:
     local_array: list[list] = array.copy()
+    render_pos: tuple = (0, 0)
 
-    for row in local_array:
-        for index, n in enumerate(row):
-            if tile_difference == 0:
-                return local_array
+    # NOTE: dev overwrite for testing
+    # test = [[1 for x in range(segment.DIMENSION_XY)] for y in range(segment.DIMENSION_XY)]
 
-            if n == 1:
-                row[index] = 0
-                tile_difference -= 1
+    def check_collision(array1: list[list], array2: list[list]) -> bool:
+        for row in range(len(array2)):
+            for col in range(len(array2[row])):
+                if array2[row][col] == 1 and array1[row][col] == 1:
+                    # print("collision")
+                    return True
+                else:
+                    # print("all good")
+                    continue
 
-    return local_array
+        return False
+
+    is_colliding: bool = check_collision(segment.tilemap_array, local_array)
+
+    if is_colliding:
+        render_pos: tuple = get_free_render_position(segment, local_array)
+        local_array = set_tiles_on_render_pos(local_array, render_pos)
+        attach_tiles_to_segment(segment, local_array)
+
+    else:
+        add_tiles_to_segment(segment.tilemap_array, local_array, render_pos)
+        return True
+
+
+def add_tiles_to_segment(segment_array: list[list], local_array: list[list], render_pos: tuple) -> None:
+    start_x: int = render_pos[0]
+    start_y: int = render_pos[1]
+
+    for y in range(len(local_array)):
+        for x in range(len(local_array[y])):
+            if local_array[y][x] == 1:
+                segment_array[start_y + y][start_x + x] = 1
+
+
+def get_free_render_position(segment: TileMapSegment, local_array: list[list]) -> tuple:
+    while True:
+        render_dimension: tuple = get_render_dimension(local_array)
+        max_index: int = len(segment.tilemap_array[0]) - 1
+        x_start: int = random.randint(0, max_index - render_dimension[0])
+        y_start: int = random.randint(0, max_index - render_dimension[1])
+
+        is_free: bool = True
+
+        for row in range(render_dimension[1]):
+            for col in range(render_dimension[0]):
+                if segment.tilemap_array[y_start + row][x_start + col] == 1:
+                    is_free = False
+                    break
+
+            if not is_free:
+                break
+
+        if is_free:
+            return (x_start, y_start)
+
+
+def get_render_dimension(local_array: list[list]) -> tuple:
+    x_span: set = set()
+    y_span: set = set()
+
+    for y_index, row in enumerate(local_array):
+        for x_index, col in enumerate(row):
+            if col == 1:
+                x_span.add(x_index)
+                y_span.add(y_index)
+
+    return (max(x_span) - min(x_span), max(y_span) - min(y_span))
+
+
+def set_tiles_on_render_pos(array: list[list], render_pos: tuple):
+    pass
 
 
 def add_rotation_and_mirroring(array: list[list]):
@@ -193,6 +263,21 @@ def add_rotation_and_mirroring(array: list[list]):
         local_array = [row[::-1] for row in local_array]
     elif mirror == "vert":
         local_array = local_array[::-1]
+
+    return local_array
+
+
+def cleanup_tile_difference(array: list[list], tile_difference: int) -> list[list]:
+    local_array: list[list] = array.copy()
+
+    for row in local_array:
+        for index, n in enumerate(row):
+            if tile_difference == 0:
+                return local_array
+
+            if n == 1:
+                row[index] = 0
+                tile_difference -= 1
 
     return local_array
 
