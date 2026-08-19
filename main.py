@@ -83,22 +83,27 @@ def init_generator():
 
     # NOTE: Seed implementation for debugging
     seed = random.randint(0, 2**32 - 1)
+    # random.seed(554148767)
     random.seed(seed)
     # print("#########################")
     print("SEED: ", seed)
 
     try:
-        tile_map_segment = TileMapSegment(0.3)
+        tile_map_segment = TileMapSegment(0.2)
         final_array = process_land_tile_distribution(tile_map_segment)
 
         """NOTE: dev overwrite for loop
         global init_count
         init_count += 1
-        if init_count <= 200:
+        if init_count <= 100:
             init_generator()
         else:
             exit()"""
 
+        print(tile_map_segment.land_tiles_amount)
+        print(sum(row.count(1) for row in final_array))
+        print(f"checksum", tile_map_segment.land_tiles_amount == sum(row.count(1) for row in final_array))
+        # TODO: have to evaluate where difference comes from
         display_out(final_array)
     except KeyboardInterrupt:
         exit()
@@ -145,11 +150,11 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                     print(f"{item} tiles successfully added to segment.")
                     break
                 else:
-                    print("handle failure here")
+                    print(f"{item} failed")
                     break
 
             except IndexError as e:
-                print(e)
+                # print(e)
                 continue
 
             except ValueError as e:
@@ -190,8 +195,8 @@ def attach_tiles_to_segment(segment: TileMapSegment, array: list[list]) -> bool:
 
     if is_colliding:
         render_pos: tuple = get_free_render_position(segment, local_array)
-        local_array = set_tiles_on_render_pos(local_array, render_pos)
-        attach_tiles_to_segment(segment, local_array)
+        # local_array = set_tiles_on_render_pos(local_array, render_pos)
+        add_tiles_to_segment(segment.tilemap_array, local_array, render_pos)
 
     else:
         add_tiles_to_segment(segment.tilemap_array, local_array, render_pos)
@@ -243,8 +248,9 @@ def get_render_dimension(local_array: list[list]) -> tuple:
     return (max(x_span) - min(x_span), max(y_span) - min(y_span))
 
 
-def set_tiles_on_render_pos(array: list[list], render_pos: tuple):
-    pass
+# def set_tiles_on_render_pos(array: list[list], render_pos: tuple):
+
+#     pass
 
 
 def add_rotation_and_mirroring(array: list[list]):
