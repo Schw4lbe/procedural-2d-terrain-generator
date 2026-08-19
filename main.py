@@ -29,9 +29,6 @@ class TileMapSegment:
             return land_tiers
 
     def distribute_tiles(self, amount: int, tiers: dict) -> list:
-        # NOTE: dev overwrite local for testing
-        # tiers = {"b": 1, "m": 1, "s": 0}
-
         results: list = []
         if tiers["m"] == 0 and tiers["s"] == 0:
             partial_amount: int = int(math.floor(amount / tiers["b"]))
@@ -154,7 +151,7 @@ def process_land_tile_distribution(segment: TileMapSegment) -> list[list]:
                     break
 
             except IndexError as e:
-                # print(e)
+                print(e)
                 continue
 
             except ValueError as e:
@@ -495,6 +492,13 @@ def display_out(grid: list[list]):
     cmap_rgba = ListedColormap([(0, 0, 0.8, 1), (0, 1, 0, 1)])
     plt.imshow(grid, cmap=cmap_rgba)
     plt.show()
+
+    # NOTE: this is the base for propper full world generation
+    # grid = np.block(grid)
+    # grid = np.block([[grid, grid, grid], [grid, grid, grid], [grid, grid, grid]])
+    # cmap_rgba = ListedColormap([(0, 0, 0.8, 1), (0, 1, 0, 1)])
+    # plt.imshow(grid, cmap=cmap_rgba)
+    # plt.show()
 
 
 def main():
